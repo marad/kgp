@@ -15,14 +15,16 @@ L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 // Ikony markerów jako proste kółka (divIcon) — bez zewnętrznych obrazków.
-function peakIcon(visited) {
+// grayed=true => szczyt wyszarzony (np. zakaz psów przy aktywnym filtrze).
+function peakIcon(visited, grayed) {
   const cls = visited ? "marker-visited" : "marker-todo";
-  const color = visited ? "#2d9c4a" : "#c94040";
+  const color = grayed ? "#b5b5b5" : visited ? "#2d9c4a" : "#c94040";
+  const opacity = grayed ? 0.5 : 1;
   return L.divIcon({
-    className: "peak-marker " + cls,
+    className: "peak-marker " + cls + (grayed ? " marker-grayed" : ""),
     html: `<span style="
       display:block;width:16px;height:16px;border-radius:50%;
-      background:${color};border:2px solid #fff;
+      background:${color};border:2px solid #fff;opacity:${opacity};
       box-shadow:0 0 3px rgba(0,0,0,0.6);"></span>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
@@ -104,6 +106,7 @@ async function init() {
 
   // Szczyty.
   const peakLayer = L.layerGroup().addTo(map);
+  const peakMarkers = []; // { marker, isVisited, dog }
   let visitedCount = 0;
 
   for (const p of peaks) {
@@ -128,10 +131,24 @@ async function init() {
         ${dogLine}
       </div>`;
 
-    L.marker([p.lat, p.lon], { icon: peakIcon(isVisited) })
+    const marker = L.marker([p.lat, p.lon], { icon: peakIcon(isVisited, false) })
       .bindTooltip(tooltipHtml, { direction: "top", offset: [0, -6] })
       .addTo(peakLayer);
+
+    peakMarkers.push({ marker, isVisited, dog: p.dog });
   }
+
+  // Filtr "dla pieska": wyszarza szczyty z zakazem psów (dog === "no").
+  const dogCb = document.getElementById("dog-filter-cb");
+  function applyDogFilter() {
+    const on = dogCb.checked;
+    for (const pm of peakMarkers) {
+      const grayed = on && pm.dog === "no";
+      pm.marker.setIcon(peakIcon(pm.isVisited, grayed));
+    }
+  }
+  dogCb.addEventListener("change", applyDogFilter);
+  applyDogFilter();
 
   // Dopasuj widok do zasięgu samych szczytów (nie całej Polski).
   const peakBounds = L.latLngBounds(peaks.map((p) => [p.lat, p.lon]));

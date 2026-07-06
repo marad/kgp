@@ -29,6 +29,21 @@ body {
   letter-spacing: 0.3px;
 }
 
+#dog-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+  font-size: 0.9rem;
+  user-select: none;
+  padding: 0.2rem 0.5rem;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+#dog-filter:hover { background: rgba(255, 255, 255, 0.2); }
+#dog-filter input { cursor: pointer; margin: 0; }
+
 #progress {
   display: flex;
   align-items: center;
