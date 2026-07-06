@@ -1,0 +1,6 @@
+# Claude Code / narzędzia lokalne
+.claude/
+
+# System operacyjny
+.DS_Store
+Thumbs.db

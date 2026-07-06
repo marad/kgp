@@ -1,0 +1,19 @@
+[
+  { "name": "Warszawa",     "lat": 52.2297, "lon": 21.0122 },
+  { "name": "Kraków",       "lat": 50.0647, "lon": 19.9450 },
+  { "name": "Wrocław",      "lat": 51.1079, "lon": 17.0385 },
+  { "name": "Poznań",       "lat": 52.4064, "lon": 16.9252 },
+  { "name": "Gdańsk",       "lat": 54.3520, "lon": 18.6466 },
+  { "name": "Łódź",         "lat": 51.7592, "lon": 19.4560 },
+  { "name": "Katowice",     "lat": 50.2649, "lon": 19.0238 },
+  { "name": "Szczecin",     "lat": 53.4285, "lon": 14.5528 },
+  { "name": "Bydgoszcz",    "lat": 53.1235, "lon": 18.0084 },
+  { "name": "Białystok",    "lat": 53.1325, "lon": 23.1688 },
+  { "name": "Lublin",       "lat": 51.2465, "lon": 22.5684 },
+  { "name": "Rzeszów",      "lat": 50.0413, "lon": 21.9990 },
+  { "name": "Kielce",       "lat": 50.8661, "lon": 20.6286 },
+  { "name": "Olsztyn",      "lat": 53.7784, "lon": 20.4801 },
+  { "name": "Jelenia Góra", "lat": 50.9044, "lon": 15.7197 },
+  { "name": "Nowy Sącz",    "lat": 49.6250, "lon": 20.6971 },
+  { "name": "Zakopane",     "lat": 49.2992, "lon": 19.9496 }
+]
