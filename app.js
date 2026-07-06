@@ -50,6 +50,224 @@ function formatDate(iso) {
   return m ? `${m[3]}.${m[2]}.${m[1]}` : iso;
 }
 
+// Odległość w metrach -> czytelny tekst ("853 m" / "35,6 km").
+function formatDist(m) {
+  if (m < 1000) return `${Math.round(m)} m`;
+  return `${(m / 1000).toFixed(1).replace(".", ",")} km`;
+}
+
+// Narzędzie pomiaru odległości ("linijka").
+// targets: [{ marker, latlng, name }] — szczyty i miasta do snapowania.
+function setupMeasureTool(map, targets) {
+  const SNAP_PX = 18; // promień przyciągania do markera (piksele)
+  const DEDUPE_PX = 8; // ignoruj kliknięcie tuż obok poprzedniego punktu
+  const state = {
+    active: false,
+    points: [], // { latlng, name }
+    line: null,
+    vertices: [],
+    segLabels: [],
+  };
+
+  let btn, panel, totalEl, hintEl;
+
+  const control = L.control({ position: "topleft" });
+  control.onAdd = function () {
+    const wrap = L.DomUtil.create("div", "leaflet-bar measure-control");
+    btn = L.DomUtil.create("a", "measure-btn", wrap);
+    btn.href = "#";
+    btn.title = "Zmierz odległość";
+    btn.setAttribute("role", "button");
+    btn.innerHTML = "📏";
+
+    panel = L.DomUtil.create("div", "measure-panel", wrap);
+    panel.innerHTML =
+      '<div class="measure-total"></div>' +
+      '<div class="measure-hint"></div>' +
+      '<a href="#" class="measure-clear">Wyczyść</a>';
+    totalEl = panel.querySelector(".measure-total");
+    hintEl = panel.querySelector(".measure-hint");
+    const clearBtn = panel.querySelector(".measure-clear");
+
+    L.DomEvent.disableClickPropagation(wrap);
+    L.DomEvent.on(btn, "click", (e) => {
+      L.DomEvent.preventDefault(e);
+      toggle();
+    });
+    L.DomEvent.on(clearBtn, "click", (e) => {
+      L.DomEvent.preventDefault(e);
+      clearMeasure();
+    });
+    return wrap;
+  };
+  control.addTo(map);
+
+  function totalDistance() {
+    let d = 0;
+    for (let i = 1; i < state.points.length; i++)
+      d += state.points[i - 1].latlng.distanceTo(state.points[i].latlng);
+    return d;
+  }
+
+  function updatePanel() {
+    panel.style.display = state.active ? "block" : "none";
+    if (!state.active) return;
+    if (state.points.length === 0) {
+      totalEl.textContent = "";
+      hintEl.textContent = "Klikaj punkty na mapie…";
+    } else {
+      totalEl.textContent = `${state.points.length} pkt · ${formatDist(
+        totalDistance()
+      )}`;
+      hintEl.textContent =
+        state.points.length === 1
+          ? "Dodaj kolejny punkt…"
+          : "Esc lub przycisk Wyczyść = od nowa.";
+    }
+  }
+
+  // Przyciąganie: jeśli kliknięcie jest blisko markera, zwróć jego pozycję i nazwę.
+  function snap(latlng) {
+    const cp = map.latLngToContainerPoint(latlng);
+    let best = null;
+    let bestD = SNAP_PX;
+    for (const t of targets) {
+      const d = cp.distanceTo(map.latLngToContainerPoint(t.latlng));
+      if (d <= bestD) {
+        bestD = d;
+        best = t;
+      }
+    }
+    return best
+      ? { latlng: best.latlng, name: best.name }
+      : { latlng, name: null };
+  }
+
+  function clearGeometry() {
+    if (state.line) {
+      map.removeLayer(state.line);
+      state.line = null;
+    }
+    state.vertices.forEach((v) => map.removeLayer(v));
+    state.vertices = [];
+    state.segLabels.forEach((l) => map.removeLayer(l));
+    state.segLabels = [];
+  }
+
+  function redraw() {
+    const latlngs = state.points.map((p) => p.latlng);
+    if (state.line) state.line.setLatLngs(latlngs);
+    else if (latlngs.length > 1)
+      state.line = L.polyline(latlngs, {
+        color: "#e8590c",
+        weight: 3,
+        dashArray: "6,6",
+        interactive: false,
+      }).addTo(map);
+
+    state.vertices.forEach((v) => map.removeLayer(v));
+    state.vertices = state.points.map((p) => {
+      const m = L.circleMarker(p.latlng, {
+        radius: 5,
+        color: "#fff",
+        weight: 2,
+        fillColor: "#e8590c",
+        fillOpacity: 1,
+        interactive: false,
+      }).addTo(map);
+      if (p.name)
+        m.bindTooltip(p.name, {
+          permanent: true,
+          direction: "right",
+          className: "measure-vertex-label",
+        });
+      return m;
+    });
+
+    state.segLabels.forEach((l) => map.removeLayer(l));
+    state.segLabels = [];
+    for (let i = 1; i < state.points.length; i++) {
+      const a = state.points[i - 1].latlng;
+      const b = state.points[i].latlng;
+      const mid = L.latLng((a.lat + b.lat) / 2, (a.lng + b.lng) / 2);
+      state.segLabels.push(
+        L.marker(mid, {
+          interactive: false,
+          icon: L.divIcon({
+            className: "measure-seg-label",
+            html: formatDist(a.distanceTo(b)),
+            iconSize: [70, 18],
+            iconAnchor: [35, 9],
+          }),
+        }).addTo(map)
+      );
+    }
+  }
+
+  function addResolvedPoint(latlng, name) {
+    if (state.points.length) {
+      const last = state.points[state.points.length - 1].latlng;
+      const d = map
+        .latLngToContainerPoint(last)
+        .distanceTo(map.latLngToContainerPoint(latlng));
+      if (d < DEDUPE_PX) return; // ignoruj podwójne kliknięcie w to samo miejsce
+    }
+    state.points.push({ latlng, name: name || null });
+    redraw();
+    updatePanel();
+  }
+
+  function onMapClick(e) {
+    const s = snap(e.latlng);
+    addResolvedPoint(s.latlng, s.name);
+  }
+
+  // Kliknięcie prosto w marker (szczyt/miasto) — pewny snap na jego pozycję.
+  function onTargetClick(t) {
+    if (!state.active) return;
+    addResolvedPoint(t.latlng, t.name);
+  }
+  targets.forEach((t) =>
+    t.marker.on("click", (e) => {
+      if (!state.active) return;
+      L.DomEvent.stop(e);
+      onTargetClick(t);
+    })
+  );
+
+  function clearMeasure() {
+    clearGeometry();
+    state.points = [];
+    updatePanel();
+  }
+
+  function onKey(e) {
+    if (e.key === "Escape") clearMeasure();
+  }
+
+  function toggle() {
+    state.active = !state.active;
+    const cont = map.getContainer();
+    if (state.active) {
+      btn.classList.add("active");
+      cont.classList.add("measuring");
+      map.doubleClickZoom.disable();
+      map.on("click", onMapClick);
+      document.addEventListener("keydown", onKey);
+    } else {
+      btn.classList.remove("active");
+      cont.classList.remove("measuring");
+      map.doubleClickZoom.enable();
+      map.off("click", onMapClick);
+      document.removeEventListener("keydown", onKey);
+      clearMeasure();
+    }
+    updatePanel();
+  }
+
+  updatePanel();
+}
+
 function showError(msg) {
   const div = document.createElement("div");
   div.id = "load-error";
@@ -90,10 +308,13 @@ async function init() {
     if (v && v.peak) visitedByName.set(v.peak.trim().toLowerCase(), v.date || null);
   }
 
+  // Cele do pomiaru odległości (szczyty + miasta) — do snapowania.
+  const measureTargets = [];
+
   // Miasta — punkty odniesienia.
   const cityLayer = L.layerGroup().addTo(map);
   for (const c of cities) {
-    L.circleMarker([c.lat, c.lon], {
+    const cm = L.circleMarker([c.lat, c.lon], {
       radius: 4,
       color: "#2a4d9e",
       weight: 1,
@@ -102,6 +323,7 @@ async function init() {
     })
       .bindTooltip(c.name, { direction: "top", className: "city-tooltip" })
       .addTo(cityLayer);
+    measureTargets.push({ marker: cm, latlng: cm.getLatLng(), name: c.name });
   }
 
   // Szczyty.
@@ -136,6 +358,7 @@ async function init() {
       .addTo(peakLayer);
 
     peakMarkers.push({ marker, isVisited, dog: p.dog });
+    measureTargets.push({ marker, latlng: marker.getLatLng(), name: p.name });
   }
 
   // Filtr "dla pieska": wyszarza szczyty z zakazem psów (dog === "no").
@@ -149,6 +372,9 @@ async function init() {
   }
   dogCb.addEventListener("change", applyDogFilter);
   applyDogFilter();
+
+  // Narzędzie pomiaru odległości.
+  setupMeasureTool(map, measureTargets);
 
   // Dopasuj widok do zasięgu samych szczytów (nie całej Polski).
   const peakBounds = L.latLngBounds(peaks.map((p) => [p.lat, p.lon]));

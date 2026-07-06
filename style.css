@@ -122,6 +122,75 @@ body {
 .peak-tooltip .pt-dog-limited { color: #b7791f; }
 .peak-tooltip .pt-dog-no { color: #999; }
 
+/* Narzędzie pomiaru ("linijka") */
+.measure-control .measure-btn {
+  font-size: 18px;
+  line-height: 30px;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  display: block;
+  width: 30px;
+  height: 30px;
+}
+
+.measure-control .measure-btn.active {
+  background: #e8590c;
+}
+
+.measure-panel {
+  display: none;
+  margin-top: 6px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 6px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
+  padding: 8px 10px;
+  font-size: 0.82rem;
+  min-width: 150px;
+}
+
+.measure-panel .measure-total {
+  font-weight: 700;
+  color: #b5410a;
+  font-variant-numeric: tabular-nums;
+}
+
+.measure-panel .measure-hint {
+  color: #666;
+  font-size: 0.75rem;
+  margin: 2px 0 6px;
+}
+
+.measure-panel .measure-clear {
+  color: #2a4d9e;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.measure-panel .measure-clear:hover {
+  text-decoration: underline;
+}
+
+.leaflet-container.measuring {
+  cursor: crosshair;
+}
+
+.measure-seg-label {
+  background: #e8590c;
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.measure-vertex-label {
+  font-weight: 600;
+}
+
 #load-error {
   position: absolute;
   top: 50%;
