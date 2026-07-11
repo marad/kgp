@@ -123,6 +123,12 @@ body {
 .peak-tooltip .pt-dog-no { color: #999; }
 
 /* Narzędzie pomiaru ("linijka") */
+.measure-control.leaflet-bar {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
 .measure-control .measure-btn {
   font-size: 18px;
   line-height: 30px;
@@ -132,6 +138,9 @@ body {
   display: block;
   width: 30px;
   height: 30px;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.4);
 }
 
 .measure-control .measure-btn.active {
