@@ -538,6 +538,9 @@ async function init() {
   // Narzędzie pomiaru odległości.
   setupMeasureTool(map, measureTargets);
 
+  // Wyszukiwanie szczytu po nazwie.
+  setupPeakSearch(map, peakMarkers);
+
   // Dopasuj widok do zasięgu samych szczytów (nie całej Polski).
   const peakBounds = L.latLngBounds(peaks.map((p) => [p.lat, p.lon]));
   map.fitBounds(peakBounds, { padding: [40, 40] });

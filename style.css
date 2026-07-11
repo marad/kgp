@@ -45,7 +45,10 @@ body {
 #dog-filter input { cursor: pointer; margin: 0; }
 
 /* Wyszukiwanie szczytu */
-#peak-search { position: relative; }
+#peak-search {
+  position: relative;
+  margin-right: auto; /* tytuł + wyszukiwarka po lewej, reszta po prawej */
+}
 
 #peak-search-input {
   width: 220px;
