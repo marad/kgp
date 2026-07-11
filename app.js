@@ -43,6 +43,19 @@ function dogInfo(dog) {
   return `<div class="pt-dog pt-dog-${dog}">${label}</div>`;
 }
 
+// Normalizacja tekstu do wyszukiwania: bez diakrytyków, małe litery.
+// NFD nie rozkłada "ł", więc podmieniamy ją ręcznie (Śnieżka -> "sniezka",
+// Chełmiec -> "chelmiec").
+function normalize(s) {
+  return s
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/ł/g, "l")
+    .replace(/Ł/g, "L")
+    .toLowerCase()
+    .trim();
+}
+
 // Formatowanie daty (YYYY-MM-DD -> DD.MM.YYYY), z zabezpieczeniem.
 function formatDate(iso) {
   if (!iso) return "";
@@ -268,6 +281,147 @@ function setupMeasureTool(map, targets) {
   updatePanel();
 }
 
+// Wyszukiwanie szczytu po nazwie (pole w nagłówku + rozwijana lista).
+// peaks: [{ marker, isVisited, name, range, lat, lon }]
+function setupPeakSearch(map, peaks) {
+  const MAX_RESULTS = 8;
+  const input = document.getElementById("peak-search-input");
+  const list = document.getElementById("peak-search-results");
+  if (!input || !list) return;
+
+  let matches = []; // aktualnie wyświetlane trafienia
+  let active = -1; // indeks podświetlonego wiersza
+  let flash = null; // tymczasowy marker "błysku"
+
+  function hideList() {
+    list.hidden = true;
+    list.innerHTML = "";
+    matches = [];
+    active = -1;
+  }
+
+  function search(query) {
+    const q = normalize(query);
+    if (!q) return [];
+    const scored = [];
+    for (const pm of peaks) {
+      const idx = normalize(pm.name).indexOf(q);
+      if (idx === -1) continue;
+      scored.push({ pm, prefix: idx === 0 ? 0 : 1 });
+    }
+    // Najpierw trafienia od początku nazwy, potem alfabetycznie.
+    scored.sort(
+      (a, b) => a.prefix - b.prefix || a.pm.name.localeCompare(b.pm.name, "pl")
+    );
+    return scored.slice(0, MAX_RESULTS).map((s) => s.pm);
+  }
+
+  function setActive(i) {
+    active = i;
+    const items = list.querySelectorAll(".peak-search-item");
+    items.forEach((el, idx) => el.classList.toggle("active", idx === active));
+  }
+
+  function render() {
+    if (matches.length === 0) {
+      list.innerHTML = '<li class="peak-search-empty">Brak wyników</li>';
+      list.hidden = false;
+      return;
+    }
+    list.innerHTML = matches
+      .map(
+        (pm, i) =>
+          `<li class="peak-search-item" data-idx="${i}">` +
+          `<span class="psi-name">${pm.name}</span>` +
+          `<span class="psi-range">· ${pm.range}</span>` +
+          (pm.isVisited ? '<span class="psi-check">✓</span>' : "") +
+          `</li>`
+      )
+      .join("");
+    list.hidden = false;
+    setActive(0);
+  }
+
+  function flashPeak(pm) {
+    if (flash) {
+      map.removeLayer(flash);
+      flash = null;
+    }
+    const current = flash = L.circleMarker([pm.lat, pm.lon], {
+      radius: 16,
+      color: "#e8590c",
+      weight: 3,
+      fill: false,
+      interactive: false,
+      className: "peak-flash",
+    }).addTo(map);
+    setTimeout(() => {
+      if (current === flash) flash = null;
+      map.removeLayer(current);
+    }, 2200);
+  }
+
+  function selectPeak(pm) {
+    if (!pm) return;
+    hideList();
+    input.value = pm.name;
+    map.flyTo([pm.lat, pm.lon], Math.max(map.getZoom(), 12));
+    pm.marker.openTooltip();
+    flashPeak(pm);
+    input.blur();
+  }
+
+  input.addEventListener("input", () => {
+    matches = search(input.value);
+    if (!normalize(input.value)) {
+      hideList();
+      return;
+    }
+    render();
+  });
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      input.value = "";
+      hideList();
+      input.blur();
+      return;
+    }
+    if (list.hidden || matches.length === 0) {
+      if (e.key === "Enter") {
+        const found = search(input.value);
+        if (found.length) selectPeak(found[0]);
+      }
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((active + 1) % matches.length);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((active - 1 + matches.length) % matches.length);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      selectPeak(matches[active] || matches[0]);
+    }
+  });
+
+  list.addEventListener("mousemove", (e) => {
+    const li = e.target.closest(".peak-search-item");
+    if (li) setActive(Number(li.dataset.idx));
+  });
+
+  list.addEventListener("click", (e) => {
+    const li = e.target.closest(".peak-search-item");
+    if (li) selectPeak(matches[Number(li.dataset.idx)]);
+  });
+
+  // Klik poza widgetem chowa listę.
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#peak-search")) hideList();
+  });
+}
+
 function showError(msg) {
   const div = document.createElement("div");
   div.id = "load-error";
@@ -357,7 +511,15 @@ async function init() {
       .bindTooltip(tooltipHtml, { direction: "top", offset: [0, -6] })
       .addTo(peakLayer);
 
-    peakMarkers.push({ marker, isVisited, dog: p.dog });
+    peakMarkers.push({
+      marker,
+      isVisited,
+      dog: p.dog,
+      name: p.name,
+      range: p.range,
+      lat: p.lat,
+      lon: p.lon,
+    });
     measureTargets.push({ marker, latlng: marker.getLatLng(), name: p.name });
   }
 

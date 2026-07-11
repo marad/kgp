@@ -23,6 +23,11 @@
 <body>
   <header id="topbar">
     <h1>Korona Gór Polskich</h1>
+    <div id="peak-search">
+      <input type="text" id="peak-search-input" placeholder="🔍 Szukaj szczytu…"
+             autocomplete="off" aria-label="Szukaj szczytu" />
+      <ul id="peak-search-results" hidden></ul>
+    </div>
     <label id="dog-filter" title="Wyszarza szczyty, na które nie wejdziesz z psem">
       <input type="checkbox" id="dog-filter-cb" />
       <span>🐕 Wyszarz góry bez wstępu z psem</span>
